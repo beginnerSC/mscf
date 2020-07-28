@@ -1,0 +1,149 @@
+library(ggplot2)
+library(ggmap)
+
+------------------------------------------------------------------------
+Slide 7:
+
+prop2016 = read.table("properties_2016.csv", sep=",",header=T, 
+            comment.char="", na.strings="")
+
+
+
+------------------------------------------------------------------------
+Slide 9:
+
+unorderedcat = c(2,3,7,10,18,23,24,30,31,32,33,34,
+                 35,36,37,38,39,40,42,44,50,56,58)
+orderedcat = c(8)
+contvar = c(4,5,6,9,11,12,13,14,15,16,17,19,
+            20,21,22,25,26,27,28,29,41,43,45,
+            46,47,48,49,51,52,53,54,55,57)
+charvar = c(1)
+
+
+------------------------------------------------------------------------
+Slide 11:
+
+for(i in unorderedcat) prop2016[,i] = 
+   factor(prop2016[,i])
+for(i in orderedcat) prop2016[,i] = 
+   factor(prop2016[,i],ordered=TRUE)
+for(i in charvar) prop2016[,i] = 
+   as.character(prop2016[,i])
+
+
+
+------------------------------------------------------------------------
+Slide 12:
+
+traintrans = read.table("train_2016_v2.csv", 
+                  sep=",", header=T)
+traintrans$parcelid = 
+     as.character(traintrans$parcelid)
+traintrans$transactiondate =
+     as.Date(traintrans$transactiondate,
+             format="%Y-%m-%d")
+
+
+------------------------------------------------------------------------
+Slide 14:
+
+trainmerged = cbind(traintrans, 
+      prop2016[match(traintrans$parcelid, 
+                            prop2016$parcelid),-1])
+
+
+------------------------------------------------------------------------
+Slide 15:
+
+ggplot(trainmerged, aes(x=transactiondate)) + 
+  geom_histogram(bins=52, fill="blue") +
+  labs(x="Transaction Date", y="Count")
+
+
+------------------------------------------------------------------------
+Slide 18:
+
+ggplot(data=trainmerged,aes(x=logerror)) + 
+  geom_histogram() + labs(x="Log Error", y="Count")
+
+
+------------------------------------------------------------------------
+Slide 20:
+
+breaks = c(-Inf,-0.5,-0.05,-0.01,0,0.01,0.05,0.5,Inf)
+trainmerged$logerrorbin = cut(trainmerged$logerror, breaks, 
+      labels=c(1:8),ordered_result=TRUE)
+
+
+------------------------------------------------------------------------
+Slide 21:
+x
+bbox = c(min(trainmerged$longitude),
+         min(trainmerged$latitude),
+         max(trainmerged$longitude),
+         max(trainmerged$latitude))/1000000
+
+
+------------------------------------------------------------------------
+Slide 22:
+
+googmap = get_map(bbox, maptype="roadmap")
+
+ggmap(googmap) + 
+  geom_point(data=trainmerged,
+     aes(x=longitude/1000000, y=latitude/1000000, 
+         color=as.numeric(logerrorbin)),
+     alpha=0.15,size=0.05) +
+  labs(x="Longitude", y="Latitude", color="Log Error Bin") +
+  scale_color_gradient2(low="blue", high="red", mid="white",
+     midpoint=4.5)
+
+------------------------------------------------------------------------
+Slide 25:
+
+ggplot(trainmerged, aes(x=bedroomcnt, fill=logerrorbin)) + 
+  geom_bar(position="fill") +
+  labs(x = "Bedroom Count", y="Proportion", 
+       fill="Log Error Bin")
+
+ggplot(trainmerged, aes(x=roomcnt, fill=logerrorbin)) + 
+  geom_bar(position="fill") +
+  labs(x = "Room Count", y="Proportion", 
+       fill="Log Error Bin")
+
+
+------------------------------------------------------------------------
+Slide 29:
+
+ggplot(trainmerged, aes(x=logerrorbin, 
+      y=calculatedfinishedsquarefeet)) + 
+  geom_violin() + scale_y_log10() +
+  labs(x="Log Error Bin", y="Finished Area (square feet)")
+
+
+------------------------------------------------------------------------
+Slide 31:
+
+ggplot(trainmerged, aes(x=lotsizesquarefeet, 
+                        y=calculatedfinishedsquarefeet)) + 
+  geom_point(size = 0.3, color="red") + 
+  scale_x_log10() + scale_y_log10(limits=c(100,22000)) + 
+  facet_wrap(~logerrorbin) +
+  labs(x="Lot Size (square feet)", 
+       y="Finished Area (square feet)")
+
+
+------------------------------------------------------------------------
+Slide 33:
+
+trainmerged$bathcut = cut(trainmerged$fullbathcnt,
+        c(0,1,2,Inf))
+levels(trainmerged$bathcut) =
+  c("One Bathroom", "Two Bathrooms", "More than Two Bathrooms")
+ggplot(trainmerged, aes(x=factor(logerrorbin), 
+                        y=yearbuilt)) + 
+  geom_violin() + 
+  facet_wrap(~bathcut) +
+  labs(x="Log Error Bin", 
+       y="Year Built")

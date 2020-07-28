@@ -1,0 +1,101 @@
+---
+title: "Homework2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(glmnet)
+```
+Problem 2
+(a)
+```{r}
+data = read.table('trends_train.csv', sep = ",",header=TRUE)
+data$Week = as.Date(as.character(data$Week), format = "%Y-%m-%d")
+#class(data$Week)
+search.vol = data.frame(data[,2:(ncol(data)-1)])
+#check
+colnames(search.vol[96]) == colnames(data[97])
+
+fit_lasso = glmnet(as.matrix(search.vol),as.matrix(data$logret),family='gaussian',alpha=1)
+#fit_lasso$lambda
+plot(fit_lasso,xvar='lambda')
+```
+(b)
+```{r}
+cv_lasso = cv.glmnet(as.matrix(search.vol),as.matrix(data$logret),family='gaussian',alpha=1)
+names(cv_lasso)
+plot(cv_lasso)
+
+#We can pull out the mean, sd, upper, and lower bounds with
+cmv = cv_lasso$cvm
+cvup = cv_lasso$cvup
+cvlo = cv_lasso$cvlo
+#so we can make pretty custom plots, like
+plot(log(cv_lasso$lambda),cv_lasso$cvm,ylim=c(min(cv_lasso$cvlo),max(cv_lasso$cvup)),type='l')
+polygon(c(log(cv_lasso$lambda),rev(log(cv_lasso$lambda))),c(cv_lasso$cvup,rev(cv_lasso$cvlo)),col='grey',border=NA)
+lines(log(cv_lasso$lambda),cv_lasso$cvm)
+```
+```{r}
+cv_lasso = cv.glmnet(as.matrix(search.vol),as.matrix(data$logret),family='gaussian',alpha=1)
+
+#we can also directly access the chosen values of lambda
+Lambda.min = cv_lasso$lambda.min
+Lambda.1se = cv_lasso$lambda.1se
+
+#Number of predictor when Lambda is the minimum
+sum(as.logical(coef(fit_lasso,s=Lambda.min)))
+
+#Number of predictor when Lambda is 1se
+sum(as.logical(coef(fit_lasso,s=Lambda.1se)))
+```
+(c) Number of predictor when we choose Lambda.min is greater than the number of predictor if we choose Lambda.1se. The nonzero coefficients we have are `r sum(as.logical(coef(fit_lasso,s=Lambda.min))) - 1` when we choose Lambda.min and  `r sum(as.logical(coef(fit_lasso,s=Lambda.1se))) - 1 ` when we choose Lambda.1se. Thus, the amount of true signals of this model is way less then 98.
+```{r}
+set.seed(1)
+yhat_lasso = predict(fit_lasso,newx=as.matrix(search.vol),s=Lambda.min)
+plot(data$logret,yhat_lasso,main="Scatterplot of Yhat vs. True Y",
+   xlab="True log return ", ylab="Lasso log return ", pch=19)
+#abline(h=mean(yhat_lasso),v=mean(data$logret),col="blue")
+abline(0,1, col="red")
+mean((yhat_lasso-data$logret)^2)
+```
+(d) The points scatter along the Y = X line, but with large variance. 
+```{r}
+set.seed(1)
+for (i in 1:nrow(data)){
+  yhat_i = predict(fit_lasso,newx=as.matrix(search.vol[i,]),s=Lambda.min)
+  if (yhat_i >= 0){
+    data$expret[i] = data$logret[i]
+  }else{
+    data$expret[i] = - data$logret[i]
+  }
+  #print(yhat_i)
+}
+sum(data$expret)
+sum(data$logret)
+```
+(e) My sum of log return of the strategy is `r sum(data$expret)`, while the return I would have realized if I bought on the first day of the and sold on the last day is `r sum(data$logret)` My strategy triumphs. 
+```{r}
+set.seed(1)
+test = read.table('trends_test.csv', sep = ",",header=TRUE)
+yhat_lasso_test = predict(fit_lasso,newx=as.matrix(test[,2:(ncol(test)-1)]),s=Lambda.min)
+plot(test$logret,yhat_lasso_test,main="Scatterplot of Yhat vs. True Y",
+   xlab="True log return ", ylab="Lasso log return ", pch=19)
+#abline(h=mean(yhat_lasso),v=mean(data$logret),col="blue")
+abline(0,1, col="red")
+
+test_search = test[,2:(ncol(test)-1)]
+
+for (i in 1:nrow(test)){
+  yhat_i = predict(fit_lasso,newx=as.matrix(test_search[i,]),s=Lambda.min)
+  if (yhat_i >= 0){
+    test$expret[i] = test$logret[i]
+  }else{
+    test$expret[i] = - test$logret[i]
+  }
+  #print(yhat_i)
+}
+sum(test$expret)
+sum(test$logret)
+```
+(f) My sum of log return of the strategy is`r sum(test$expret)` , while the return I would have realized if I bought on the first day of the and sold on the last day is `r sum(test$logret)`. My strategy works bad on test data.  

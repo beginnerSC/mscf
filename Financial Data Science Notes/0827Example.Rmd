@@ -1,0 +1,87 @@
+---
+title: "0827"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+## rnorm Function
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+rnorm(10)
+```
+```{r, echo=FALSE}
+rnorm(10)>1
+sum(rnorm(10)>1) #returns the buber which are greater than 1
+sum(rnorm(10)>1)/10 #gives the proportion of random numbers greater than 1
+mean(rnorm(10)>1) #Same thing
+1-pnorm(1) #exactl prob
+```
+```{r, echo=FALSE}
+vectex = seq(1,20,by=3)
+vectex
+```
+```{r, echo=FALSE}
+vectex[7]
+```
+```{r, echo=FALSE}
+listex = list(c(T,F,T), 1:5, 6)
+listex[2]
+#unlist(listex[2,3]) #unlist funciton will take the two and three list compoents and force them into one, it will create a new numeric vector of length 6
+unlist(listex) #creates numeric vector (double) of length 9 via coercion
+```
+## Exercise
+```{r, echo=FALSE}
+x = rnorm(100)
+y = rnorm(100)
+holdlmout = lm(y~x) # linear regression of y on x
+#now holdmout is a list consisting of the important results of linear regression
+attributes(holdlmout) #attributes and names gives a list of components of the objects
+names(holdlmout)
+holdlmout$coefficients
+```
+## Attributes
+```{r, echo=FALSE}
+as.integer(factor(c(0,1,2))) # Coercion from factor to integer, looks at that position that level is in the list of levels -- 0 is the first level, 1 is the second level, 2 is the third level. So when coerced back into integers, displays "1 2 3"
+```
+## Matrices
+```{r, echo=FALSE}
+matex = matrix(1:6, nrow=2)
+print(matex)
+c(nrow(matex),ncol(matex))
+rbind(1:3,4:6,7:9) # bind by row
+cbind(cbind(1:3,4:6,7:9), rbind(1:3,4:6,7:9)) #bind by colmun
+```
+## Rep
+```{r, echo=FALSE}
+n=3
+m=3
+rep(1:n,m)
+matrix(rep(1:n,m),nrow=n)
+```
+```{r, echo=FALSE}
+gradebook = data.frame(
+Name = c("Miguel","Yotam","Mary","Jing"),
+HWScore = c(98, 87, 99, 78),
+ExamScore = c(92, 91, 87, 95),
+FinalGrade = c("A", "A-", "A", "B"),
+stringsAsFactors = FALSE)
+
+gradebook
+gradebook$Name
+factor(gradebook$FinalGrade)
+gradebook$FinalGrade
+```

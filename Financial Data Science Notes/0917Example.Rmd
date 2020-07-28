@@ -1,0 +1,125 @@
+---
+title: "0917"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+prop2016 = read.table("properties_2016.csv", sep=",",header=T, comment.char="", na.strings="")
+names(prop2016)
+unorderedcat = c(2,3,7,10,18,23,24,30,31,32,33,34,
+                 35,36,37,38,39,40,42,44,50,56,58)
+orderedcat = c(8)
+contvar = c(4,5,6,9,11,12,13,14,15,16,17,19,
+            20,21,22,25,26,27,28,29,41,43,45,
+            46,47,48,49,51,52,53,54,55,57)
+charvar = c(1)
+
+for(i in unorderedcat) prop2016[,i] = 
+   factor(prop2016[,i])
+for(i in orderedcat) prop2016[,i] = 
+   factor(prop2016[,i],ordered=TRUE)
+for(i in charvar) prop2016[,i] = 
+   as.character(prop2016[,i])
+
+traintrans = read.table("train_2016_v2.csv", 
+                  sep=",", header=T)
+traintrans$parcelid = 
+     as.character(traintrans$parcelid)
+traintrans$transactiondate =
+     as.Date(traintrans$transactiondate,
+             format="%Y-%m-%d")
+
+trainmerged = cbind(traintrans, 
+      prop2016[match(traintrans$parcelid, 
+                            prop2016$parcelid),-1])
+
+library(ggplot2)
+ggplot(data=trainmerged, aes(x=transactiondate)) + 
+  geom_histogram(bins=52, fill="blue") +
+  labs(x="Transaction Date", y="Count")
+
+ggplot(data=trainmerged,aes(x=logerror)) + 
+  geom_histogram() + labs(x="Log Error", y="Count")
+
+summary(trainmerged)
+
+breaks = c(-Inf,-0.5,-0.05,-0.01,0,0.01,0.05,0.5,Inf)
+trainmerged$logerrorbin = cut(trainmerged$logerror, breaks, 
+      labels=c(1:8),ordered_result=TRUE)
+
+bbox = c(min(trainmerged$longitude),
+         min(trainmerged$latitude),
+         max(trainmerged$longitude),
+         max(trainmerged$latitude))/1000000
+
+library(ggmap)
+install.packages('ggmap')
+googmap = get_map(bbox, maptype="roadmap")
+
+library(quantmod)
+Kellogg = getSymbols("K",
+  from="2010-1-1",to="2016-12-31", auto.assign=F)
+
+ldrK = data.frame(dailyReturn(Ad(Kellogg), type="log"))
+
+ggplot(ldrK,aes(x=daily.returns)) + 
+  geom_density(bw="SJ",aes(color="kde")) +
+  stat_function(fun=dnorm, aes(color="normal"),
+      args=list(mean=mean(ldrK$daily.returns),
+                sd=sd(ldrK$daily.returns))) +
+  scale_color_manual(name="",
+              values=c("kde"="red","normal"="blue")) +
+  labs(x="Log Daily Return",title="Data for Kellogg (K)",
+       subtitle="January 2010 through December 2016")
+
+fulldata = read.table("q1_2017_all.csv", sep=",", header=T, quote="")
+fulldata$Date = as.Date(as.character(fulldata$Date), format="%Y%m%d")
+fulldata = fulldata[!duplicated(fulldata[,c(1,3)], fromLast=TRUE),]
+fulldata$McapRank = factor(fulldata$McapRank, ordered=TRUE)
+fulldata$TurnRank = factor(fulldata$TurnRank, ordered=TRUE)
+fulldata$VolatilityRank = factor(fulldata$VolatilityRank, ordered=TRUE)
+fulldata$PriceRank = factor(fulldata$PriceRank, ordered=TRUE)
+
+cancelbyticker = split(fulldata$Cancels,fulldata$Ticker)
+cancelbyticker = 
+  cancelbyticker[sapply(cancelbyticker,length)>=5]
+
+kCDF = function(x, res=100, ...)
+{
+   holddens = density(x,...)
+   interpdens = approxfun(holddens$x, holddens$y, 
+                            yleft=0, yright=0)
+   xseq = seq(min(holddens$x),max(holddens$x),length=res)
+   holdout = numeric(res)
+   for(i in 1:res)
+   {
+      holdout[i] = integrate(interpdens, lower=min(holddens$x),
+                  upper=xseq[i], stop.on.error=FALSE)$value
+   }
+   CDF = approxfun(xseq, holdout, yleft=0, yright=1)
+   invCDF = approxfun(holdout, xseq, yleft=NA, yright=NA)
+   list(CDF=CDF, invCDF=invCDF)
+}
+CDFsbyTicker = lapply(cancelbyticker, kCDF, bw="SJ")
+
+pseq = seq(0.1,0.9, by=0.1)
+
+holdquantiles = matrix(ncol=length(pseq), 
+                       nrow=length(CDFsbyTicker))
+for(i in 1:length(CDFsbyTicker))
+{
+   holdquantiles[i,] = CDFsbyTicker[[i]]$invCDF(pseq)
+}
+
+optionsdata = read.table("optionssample09302017.txt",
+                sep=",", header=T)
+optionsdata$inmoney = optionsdata$curprice - 
+                    optionsdata$strike
+optionsdata20 = filter(optionsdata, timetoexpiry==20)
+ggplot(optionsdata20, aes(x=inmoney,y=implvol)) + 
+  geom_point(size=0.5) + 
+  labs(x="Current Price - Strike Price", 
+       y="Implied Volatility")
+```

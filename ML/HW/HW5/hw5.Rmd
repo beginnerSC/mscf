@@ -1,0 +1,83 @@
+---
+title: "Problem 1"
+date: "February 24, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+x_train = read.table('xtrain.csv', sep=',', header=TRUE, row.names = 'X')
+x_test = read.table('xtest.csv', sep=',', header=TRUE, row.names = 'X')
+y_train = read.table('ytrain.csv', sep=',', row.names = 'V1')
+y_test = read.table('ytest.csv', sep=',', row.names = 'V1')
+
+train = cbind(as.factor(y_train$V2), x_train)
+testdata = cbind(as.factor(y_test$V2), x_test)
+names(train)[1] = 'y'
+names(train)[1] = 'y'
+colnames(train)
+```
+
+
+(a)
+```{r}
+library(rpart)
+fit1 = rpart(y~. , method = "class", data = train)
+summary(fit1)
+#plot(fit)
+```
+Error message shows that the fit is not a tree, it is just a root, thus, we cannot plot it. By default, the rpart function won’t make a split. Due to the heavily imbalanced data set, the number of default is very small compared to the whole data set.
+
+(b)
+```{r}
+wgts = rep(1, length(y_train$V2))
+wgts[which(y_train == 1)] = 10
+fit2 = rpart(y~. , method = "class", data = train, weights = wgts)
+plot(fit2, margin = 0.2)
+text(fit2, pretty=0, cex=0.8)
+```
+
+```{r}
+ypred_tree = predict(fit2, x_test, type = 'class')
+print("Tree misclassification rate: ", mean(ypred_tree != y_test$V2) )
+mean(ypred_tree != y_test$V2)
+```
+The misclassification rate is much larger than logistic regression (0.1154) and base rate(0.1178).
+
+```{r}
+predict_prob_tree = predict(fit2, x_test, type = 'prob')[,2]
+n = length(predict_prob_tree)
+top_1000 = rownames(x_test)[order(predict_prob_tree)][(n-999):n]
+sum(y_test[top_1000,])/1000
+```
+
+(c)
+```{r}
+plotcp(fit2)
+printcp(fit2)
+opt_cp = fit2$cptable[which.min(fit2$cptable[,"xerror"]),"CP"]
+opt_cp
+
+prunetree = prune(fit2, cp=opt_cp)
+plot(prunetree, margin = 0.2)
+text(prunetree, pretty=0, cex=0.8)
+```
+
+
+
+```{r}
+predict_prob_prune = predict(prunetree, x_test, type = 'prob')[,2]
+library(pROC)
+
+logi_score = read.table('testprob.csv', sep=',',row.names = 'V1')
+roc(y_test$V2, predict_prob_tree, plot=TRUE)
+roc(y_test$V2, predict_prob_prune, plot=TRUE, col='yellow', add=TRUE)
+roc(y_test$V2, logi_score$V2, plot=TRUE, col='blue', add=TRUE)
+```
+The decision process of trees are discrete, so the predicted socres can only be distributed on some certain sections. Thus, when we change the threshold, we are making linear changes in the classification results. So, the ROC curve for the two trees are piecewise linear.
+
+
+
