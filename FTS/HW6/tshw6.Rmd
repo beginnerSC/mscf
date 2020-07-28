@@ -1,0 +1,45 @@
+---
+title: "HW6 -- Ying Zheng"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+Problem 1 
+```{r load_packages, include=FALSE}
+library(dlm)
+```
+(a)
+```{r warning=FALSE}
+buildAR3 = function(x)
+{
+  FF = matrix(c(1,0,0),nrow=1)
+  GG = matrix(c(x[1],1,0,x[2],0,1,x[3],0,0),nrow=3)
+  V = exp(x[4])
+  W = matrix(c(exp(x[5]),rep(0,8)),nrow=3)
+  m0 = rep(0,3)
+  C0 = matrix(solve(diag(9) - GG %x% GG) %*% matrix(W,ncol=1),ncol=3)
+  return(list(m0 = m0, C0 = C0, FF = FF, GG = GG, V = V, W = W))
+}
+
+ppi= read.table('m-ppiaco4709.txt')
+#Year, Month, Day, PPI
+zt = diff(log(ppi$V4), 1)
+yt = zt-mean(zt)
+
+holdfit = dlmMLE(yt,c(1,1,1,1,1),buildAR3) 
+estimated_parameters = holdfit$par 
+holdfit
+```
+```{r warning=FALSE}
+filter_ = dlmFilter(zt,buildAR3(holdfit$par))
+plot(ts(filter_$m[, 1]), type = 'l',ylab = 'xt', xlab='t')
+```
+```{r}
+sigma.square.e = exp(-10.08680704) 
+sigma.square.a = exp(-11.63898805)
+print(c(sigma.square.e,sigma.square.a))
+```
+The fitted model is: Xt = 1.02204084Xt-1 - 0.21312549Xt-2 - 0.01673239Xt-3 + at, where at~ iid N(0, 4.162511e-05) 
+```{r}
+```
+Yt = Xt + et, where et ~ N(0, 8.815597e-06)

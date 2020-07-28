@@ -1,0 +1,157 @@
+---
+title: "HW4 -- Ying Zheng"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+Part I
+Problem 1 
+```{r load_packages, include=FALSE}
+data(Tbrate, package = "Ecdat") 
+library(tseries)
+library(fGarch)
+library(forecast)
+# r = the 91-day treasury bill rate 
+# y=thelogofrealGDP
+# pi = the inflation rate
+```
+```{r}
+Tbill = Tbrate[,1] 
+Del.Tbill = diff(Tbill)
+#Use both time series and ACF plots
+plot(Tbill)
+plot(Del.Tbill)
+acf(Tbill)
+acf(Del.Tbill)
+#perform ADF tests on both series
+adf.test(as.numeric(Tbill), alternative = "s")
+adf.test(as.numeric(Del.Tbill), alternative = "s")
+```
+```{r}
+```
+By looking at time-series plots, Del.Tbill is more stationary. ACF plot suggests no correlation after lag one for Del.Tbill while suggests strong correlation in all lags for Tbill. P-value of ADF test is 0.01 (<0.05) for Del.Tbill, which indicates zero correlation, while p-value of ADF test is 0.6075 for Tbill. Del.Tbill shows conditional heteoskedasticity, since variance seems to grow larger and larger over time. 
+```{r}
+```
+Problem 2 (a)
+```{r}
+garch.model.Tbill = garchFit(formula = ~arma(1, 0) + garch(1, 0), Del.Tbill)
+summary(garch.model.Tbill)
+garch.model.Tbill@fit$matcoef
+```
+ARMA(1,0) and Garch(1,0) have been fitted.
+```{r}
+```
+Problem 2 (b): Estimated mu = 0.08349652, ar1 = 0.24163450, omega = 0.33815662, and alpha1 = 0.83482811.
+```{r}
+```
+Problem 3
+```{r}
+res = residuals(garch.model.Tbill)
+res_std = res / garch.model.Tbill@sigma.t
+par(mfrow=c(2,3))
+plot(res)
+acf(res)
+acf(res^2)
+plot(res_std)
+acf(res_std)
+acf(res_std^2)
+```
+```{r}
+```
+(a) ACF(res) plots the autocorrelation for residuals and meanwhile gives a confidence interval to reject the null. The above acf plot indicates correlation at lag seven and lag 16, which suggests the model parameters fit quite well.
+(b) ACF(res^2), like ACF(res), instead plots the autocorrelation for residuals squares. The plot implies a volatility clustering, to be sure we have to take further look at residual variance.
+(c) ACF(res_std^2) plots the autocorrelation for residual variance. This plot suggest no correlation in further lags, thus there is no strong evidence of volatility clustering.
+(d) This is an estimate of sigma_t.
+(e) It shows lareger variance in largers index.
+```{r}
+```
+Problem 4
+```{r}
+del.log.tbill = diff(log(Tbill))
+model = garchFit(formula = ~arma(1, 0) + garch(1, 0), del.log.tbill)
+summary(model)
+res_m = residuals(model) 
+res_std_m = res_m/model@sigma.t 
+par(mfrow = c(2, 3))
+plot(res_m)
+acf(res_m)
+acf(res_m^2)
+plot(res_std_m)
+acf(res_std_m)
+acf(res_std_m^2)
+```
+```{r}
+```
+By looking at acf(res_m) and acf(res_m^2), we did not find a strong evidence of correlation in further lags. We did not find strong evidence in volatility clustering either. By looking at scatter plots, there's no heteroskedasticity in residuals any longer. Thus, we may conclude working with log of Tbill is a better choice.
+```{r}
+```
+Part II
+(a)
+```{r}
+library(quantmod)
+F_= getSymbols("F", from = "1995-1-1", to = "2017-12-31", auto.assign = F)
+vol = Vo(F_)
+plot(vol)
+```
+```{r}
+```
+We noticed that as value goes up, variance goes up. So it would be better to take a log.
+```{r}
+```
+(b)
+```{r}
+log.vol=log(vol)
+plot(log.vol)
+acf(log.vol)
+diff.logvol = diff(log(vol), 1, 1)[-1]
+plot(diff.logvol)
+acf(diff.logvol)
+adf.test(diff.logvol)
+```
+By looking at time series plot of both log(vol) and acf(log(vol)), I believe taking log of volume does not make it stationary. Taking first order differences does help. ACF plot suggests strong correltaion in lag one two and three but not further lags. ACF test on the same time serie gives a p-value of 0.01, which is less than 0.05, showing no strong evidence of nonzero correlation.
+```{r}
+```
+(c) i
+```{r}
+holdfit = auto.arima(diff.logvol, approx = F, stepwise = F) 
+summary(holdfit)
+```
+(c) ii
+```{r}
+acf(holdfit$residuals)
+acf(holdfit$residuals^2)
+```
+```{r}
+```
+acf(res) indicates no correlation in further lags, which implies the choise of good model parameters. acf(res^2) shows no sign of volatility clustering.
+```{r}
+```
+(c) iii
+```{r results="hide"}
+garch_model = garchFit(formula = ~arma(2, 2) + garch(1, 1), diff.logvol)
+```
+```{r}
+summary(garch_model)
+```
+```{r}
+```
+(c) iv: AIC goes up from 4364.21 to 0.7571299*5790=4383.782. So including the GARCH(1,1) component in the model was useful.
+```{r}
+```
+(c) v: Normality assumption is not justified, since the qq plot of residuals shows a way heavier tail than ordinary normal. 
+```{r}
+qqnorm(garch_model@residuals) 
+qqline(garch_model@residuals)
+```
+```{r}
+```
+(c) vi:
+```{r results="hide"}
+garch_model_ = garchFit(formula = ~arma(2, 2) + aparch(1, 1), diff.logvol)
+```
+```{r}
+summary(garch_model_)
+```
+```{r}
+```
+Since AIC mutiplier this time is 0.7575506, which is slightly larger than the previous 0.7571299, but remains almost the same. So AIC does not justify this additional complexity in this model.

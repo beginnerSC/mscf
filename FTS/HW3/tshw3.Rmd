@@ -1,0 +1,114 @@
+---
+title: "HW3 -- Ying Zheng"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+Part I - 
+Problem 1 
+```{r load_packages, include=FALSE}
+library("Ecdat")
+library("forecast")
+library("tseries")
+library("quantmod")
+```
+```{r}
+data(IncomeUK)
+consumption = IncomeUK[,2]
+plot(consumption)
+```
+Clearly, there is a upward going trend in the consumption time series with a seaonality of approximately one year. Within each circle, consumption first keeps moving up for around 3/4 of the time and goes down in the end. To remove the trend, I use the first-differenced series, and inspect the plot of the series, along with the result of the ADF test.
+```{r}
+consumption.diff = diff(consumption,1, 1) 
+plot(consumption.diff)
+```
+
+```{r}
+```
+We are able to remove the trend by taking first order difference but it still seems not stationary (variance getting larger as time getting larger). So we try to take difference of log consumption.
+```{r}
+log.consumption.diff = diff(log(consumption),1, 1)
+plot(log.consumption.diff)
+```
+
+```{r}
+```
+Now the time series looks stationary. Next, we do ACF on both consumption difference and log consumption difference: 
+```{r}
+acf(consumption.diff, lag = 20)
+acf(log.consumption.diff, lag = 20)
+```
+```{r}
+```
+Both the row data and ACF consumption differencing suggest a clear seasonal pattern. So we should do seasonal differening. Also, it's easy to see that log transformation gives a more stationary time series. So we should fit seasonal ARIMA model to the data with a log transformation.
+```{r}
+```
+Problem 2
+```{r}
+# By observing the time series, it's easy to find period = 4
+log.consumption = ts(log(consumption), frequency = 4)
+holdfit.logC = auto.arima(log.consumption, approx = F, stepwise = F)
+holdfit.logC
+```
+By looking at the result, we can tell that: for the non-seasonal part, the order of autoregression is 0, the degree of differencing is 1 and the order of moving average is 0; for the seasonal part (with period of 4), the order of autoregression is 0, the degree of differencing is 1 and the order of moving average is 1.
+```{r}
+```
+Problem 3
+```{r}
+model.acf=acf(holdfit.logC$residuals)
+```
+```{r}
+```
+There is no significant statistical evidence to reject that the residuals have no correlations.
+```{r}
+```
+Part II 
+```{r}
+TB3MS = getSymbols("TB3MS",src = "FRED",auto.assign = F)
+TB3MS = TB3MS["1990::2012"]
+```
+(a) The plot does not seem stationary.
+```{r}
+plot(TB3MS)
+```
+(b)
+```{r}
+TB3MS.diff = diff(TB3MS, 1, 1) 
+plot(TB3MS.diff)
+logTB3MS.diff = diff(log(TB3MS), 1, 1)
+plot(logTB3MS.diff)
+adf.test(as.numeric(TB3MS.diff[-1]), alternative = "s")
+```
+By looking at first order difference on both row and transformed data, it seems that the not transformed one is more stationary. We did ADF test on that and got a p value of 0.03763, which is less than 0.05. So we accept the alternative hypothesis that the difference on row data is stationary.
+```{r}
+```
+(c) The order of autoregression is 3, and the order of moving average is 1.
+```{r}
+holdfit.TB3MS = auto.arima(TB3MS, approximation = F, stepwise = F)
+holdfit.TB3MS
+```
+(d) We tried acf plot, box test and qq plot. ACF plot suggests some correlation in further lags, bos test gives a p value less than 0.05 and qq plot shows a trend delivates from the 45 degree line. Since none of the diagnostic tests on the residuals passed, the model did not seem to be a resonable fit.
+```{r}
+acf(holdfit.TB3MS$residuals)
+Box.test(holdfit.TB3MS$residuals, lag = 20, type="Ljung-Box", fitdf = 3)
+qqnorm(holdfit.TB3MS$residuals) 
+qqline(holdfit.TB3MS$residuals)
+```
+```{r}
+```
+(e)
+```{r}
+holdpreds = predict(holdfit.TB3MS, n.ahead = 3)
+CI.1 = c(holdpreds$pred[1]-1.96*holdpreds$se[1],holdpreds$pred[1]+1.96*holdpreds$se[1])
+CI.2 = c(holdpreds$pred[2]-1.96*holdpreds$se[2],holdpreds$pred[2]+1.96*holdpreds$se[2])
+CI.3 = c(holdpreds$pred[3]-1.96*holdpreds$se[3],holdpreds$pred[3]+1.96*holdpreds$se[3])
+CI.1
+CI.2
+CI.3
+```
+(f) Yes, the three intervals include the observed values.
+```{r}
+TB3MS.all = getSymbols("TB3MS",src = "FRED",auto.assign = F)
+TB3MS.all["2013"][1:3]
+```
+

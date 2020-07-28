@@ -1,0 +1,86 @@
+---
+title: "HW5 -- Ying Zheng"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+Problem 1 
+```{r load_packages, include=FALSE}
+library(vars)
+library(portes)
+```
+(a)
+```{r}
+data= read.table("MacroVars.csv",sep=",", header=T)
+acf(data)
+```
+```{r}
+```
+Comments:
+The plots above showed us acf and ccf of the 3 macro variables GDP, FFR and CPI. On the diagoanl are acfs of them, and the rest are ccfs. We notice that GDP is correlated with FFR at lag 0, -1, -5 and -10, while it has barely any correlation with CPI at all lags. FFR has barely any correlation with CPI at all lags either.
+```{r}
+```
+(b)
+```{r}
+holdfit = VAR(data, lag.max=20)
+holdfit$p
+```
+```{r}
+```
+(c)
+```{r}
+serial.test(holdfit)
+```
+The p-value is 0.02528, which is smaller than 0.05, shows evidence of serial correlation in residuals.
+```{r}
+```
+Problem 2 (a)
+```{r}
+TbGdpPi = read.csv("TbGdpPi.csv", header=TRUE)
+TbPi.diff = ts(apply(TbGdpPi[,-2],2,diff), start=c(1955,2), freq=4)
+plot(TbPi.diff)
+acf(TbPi.diff^2)
+source("SDAFE2.R")
+mLjungBox(TbPi.diff^2, lag=8)
+```
+```{r}
+```
+Yes. First, the plots above shows clustering effects. Secondly, from the Ljung-Box test, there is strong evidence of correlation in the joint series. Finally, from the plot of TbPi.diff, we can see unstationarity. So it exhibit conditional heteroskedasticity.
+```{r}
+```
+(b)
+```{r}
+EWMA.param = est.ewma(lambda.0=0.95, innov=TbPi.diff)
+EWMA.param$lambda.hat
+EWMA.Sigma=sigma.ewma(lambda=EWMA.param$lambda.hat,innov=TbPi.diff)
+par(mfrow = c(2,2))
+plot(ts(EWMA.Sigma[1,1,]^.5, start = c(1955, 2), frequency = 4),
+     type = 'l', xlab = "year", ylab = NULL,
+     main = expression(paste("(a) ", hat(sigma)["1,t"])))
+plot(ts(EWMA.Sigma[1,2,], start = c(1955, 2), frequency = 4),
+     type = 'l', xlab = "year", ylab = NULL,
+     main = expression(paste("(b) ", hat(sigma)["12,t"])))
+plot(ts(EWMA.Sigma[1,2,]/(sqrt(EWMA.Sigma[1,1,]* EWMA.Sigma[2,2,])),
+        start = c(1955, 2), frequency = 4),
+     type = 'l', xlab = "year", ylab = NULL,
+     main = expression(paste("(c) ", hat(rho)["12,t"])))
+plot(ts(EWMA.Sigma[2,2,]^.5, start = c(1955, 2), frequency = 4),
+     type = 'l', xlab = "year", ylab = NULL,
+     main = expression(paste("(d) ", hat(sigma)["2,t"])))
+```
+```{r}
+```
+From the estimates above, the estimated parameter is 0.8665812.
+```{r}
+```
+(c)
+```{r}
+n = dim(TbPi.diff)[1]
+d = dim(TbPi.diff)[2]
+stdResid.EWMA = matrix(0,n,d)
+for(t in 1:n){
+  stdResid.EWMA[t,] = TbPi.diff[t,] %*% matrix.sqrt.inv(EWMA.Sigma[,,t])
+}
+mLjungBox(stdResid.EWMA^2, lag=8)
+```
+Form the Ljung-Box test of the squared standardized residuals, the p-value is 0.002, which is significantly smaller than 0.05, showing strong evidence of serial correlation. So the EWMA model is not adequate.

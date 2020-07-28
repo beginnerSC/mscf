@@ -1,0 +1,81 @@
+---
+title: "HW2 -- Ying Zheng"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+Problem 1 (a)
+```{r}
+library(Ecdat)
+data(CRSPday)
+crsp=CRSPday[,7]
+crsp = as.numeric(crsp)
+arima(crsp,order=c(1,0,0))
+arima(crsp,order=c(2,0,0))
+```
+a) Normal probability plot of the residuals: both residuals of AR(1) and AR(2) shows strong nonlinearity in Q-Q plots (deliviate a lot from the indicated straight line), which suggests correlations among residuals.
+```{r}
+AR1=arima(crsp,order=c(1,0,0))
+AR2=arima(crsp,order=c(2,0,0))
+qqnorm(AR1$residuals)
+qqline(AR1$residuals)
+qqnorm(AR2$residuals)
+qqline(AR2$residuals)
+```
+```{r}
+```
+b) ACF of the residuals: correlations in residuals for further lags stil exist, indicated by siginificant acf of AR(1) with lag greater than 1 and siginificant acf of AR(2) with lag greater than 2.
+```{r}
+AR1=arima(crsp,order=c(1,0,0))
+AR2=arima(crsp,order=c(2,0,0))
+acf(AR1$residuals)
+acf(AR2$residuals)
+```
+```{r}
+```
+c) Sample ACF for the data VS. the fit ACF for the model: sample ACF and fitted ACF are almost the same.
+```{r}
+#sample acf
+acf(crsp)
+fit.acf1=ARMAacf(ar=AR1$coef,lag.max=35)
+points(0:35,fit.acf1)
+fit.acf1
+acf(crsp) 
+fit.acf2=ARMAacf(ar=AR2$coef,lag.max=35)
+points(0:35,fit.acf2)
+fit.acf2
+```
+```{r}
+```
+d) Ljung-Box Test on the residuals: p-values are 0.01212 and 0.01083 respectively, which suggests strong evidence of correlation (h) not equal to 0 for some further h. Since p-value for AR(1) model is slightly larger than AR(2) model, AR(2) model is preferable in this case (more likely to reject null).
+```{r}
+Box.test(AR1$residuals,lag=20,fitdf=1, type="Ljung-Box")
+Box.test(AR2$residuals,lag=20,fitdf=2,type="Ljung-Box")
+```
+```{r}
+```
+e) Value of AICc for each of the models: since AIC is slightly smaller for AR(1), we prefer AR(1) in this case.
+```{r}
+print(AR1$aic)
+print(AR2$aic)
+```
+```{r}
+```
+Problem 1 (b)
+```{r}
+# Find a 95 % confidence interval for phi for the AR(1) model.
+arima(crsp,order=c(1,0,0))
+CI=c(0.0853-0.0198*1.96,0.0853+0.0198*1.96)
+CI
+```
+```{r}
+```
+Problem 2
+```{r}
+#Remember to set max.q = 0
+library(forecast)
+auto.arima(crsp,max.q=0,approximation=F)
+auto.arima(crsp,max.q=0,approximation=T)
+```
+
+Based on AIC, when we set approximation to be false, AR(1) is the best AR(p) model. However, if we set approximation to be true, the result differs. AR(2) is the best model for AR(p) when approximaxion is true.

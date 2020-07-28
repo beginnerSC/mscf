@@ -1,0 +1,28 @@
+---
+title: "Data Processing"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+library('quantmod')
+adj = getSymbols("MMM", from="2017-1-1", to="2017-12-31", auto.assign=F)[,6]
+```
+
+Problem 4
+```{r}
+#(a)
+logReturn = diff(log(adj))[-1] 
+plot(logReturn)
+```
+Non-stationality is not obvious from this plot.
+```{r}
+#(b)
+acf(logReturn)
+```
+```{r}
+#(c)
+Box.test(logReturn, lag = 20, type = "Ljung-Box")
+```
+p-value of 0.7459 suggests significant evidence of correlation.
