@@ -1,0 +1,167 @@
+sampleoneoption = function(symbol, opttype, daysvol)
+{
+  require(fOptions)
+  require(quantmod)
+  require(dplyr)
+
+# Sample a call option
+
+   holdout = getOptionChain(symbol,NULL)
+   
+   alloftype = unlist(holdout, recursive=FALSE)
+   alloftype = alloftype[seq(1,length(alloftype),by=2) + 
+                                as.numeric(opttype=="put")]
+   alloftype = bind_rows(alloftype,.id="date")
+   
+# Choose one at random, weighted by volume
+   touse = sample(1:nrow(alloftype),size=1,prob=alloftype$Vol)
+   hold3 = alloftype[touse,]
+  
+
+# Calculate time to expiry
+
+   holdstr = hold3$date
+   expiry = as.Date(holdstr,format="%b.%d.%Y")
+   timetoexpiry = as.numeric(expiry - Sys.Date())
+
+
+# Calculate the historical volatility
+
+   histdat = getSymbols(symbol, auto.assign=FALSE, from = Sys.Date() - daysvol)
+
+   logrets = dailyReturn(Ad(histdat))[-1]
+   histvol = sd(logrets)*sqrt(252)
+
+
+# Find most recent price
+
+   curprice = as.numeric(last(Ad(histdat)))
+
+
+# Find Implied volatility
+
+   implvol = try(GBSVolatility(hold3[,6],substring(opttype,1,1),
+              curprice,hold3[,2],timetoexpiry/365,0,0),TRUE)
+
+   if("try-error" %in% class(implvol))
+   {
+      implvol = NA
+   }
+
+
+# Find BS prediction
+
+   bsval = try(GBSOption(substring(opttype,1,1),curprice,
+            hold3[,2],timetoexpiry/365,0,0,histvol)@price,TRUE)
+
+   if("try-error" %in% class(bsval))
+   {
+      bsval = NA
+   }
+
+
+# Output Results
+
+   list(timetoexpiry = timetoexpiry,
+   strike = hold3[,2],
+   last = hold3[,3],
+   bid = hold3[,5],
+   ask = hold3[,6],
+   volume = hold3[,7],
+   openint = hold3[,8],
+   curprice = curprice,
+   histvol = histvol,
+   implvol = implvol,
+   bsval = bsval)
+}
+
+#setwd("~/Teaching/MSCF/DScourses/LectureNotes/Part7_Smoothing/OptionsData")
+
+library(quantmod)
+library(fOptions)
+library(TTR)
+library(dplyr)
+
+allNYSEstocks = stockSymbols("NYSE",quiet=TRUE)
+allNYSEsymbols = allNYSEstocks$Symbol
+
+# Number of days of data to use to calculate historical volatility
+daysvol = 30
+
+# How many options do we want?
+target = 1000
+
+# Check to see if some already done
+
+if(length(dir(pattern="optionsample.Robj")) > 0)
+{
+   load("optionsample.Robj")
+   numgoodones = nrow(optionsample)
+   set.seed(numgoodones)
+   print(paste("Restarting search. Already found",numgoodones))
+} else
+{
+   optionsample = NULL
+   numgoodones = 0
+   set.seed(0)
+}
+
+datout = NULL
+symbs = NULL
+
+
+while(numgoodones < target)
+{
+   cand = sample(allNYSEsymbols, size=1)
+   print(cand)
+
+# Check to see if there is any option info for this symbol
+   
+   holdout = try(getOptionChain(cand,NULL,auto.assign=F),TRUE)
+
+   if("try-error" %in% class(holdout) || length(holdout) == 0)
+   {
+      next
+   }
+
+
+# Check to see if there is enough daily market data
+# on this symbol.
+   
+   holdout = try(getSymbols(cand,auto.assign=F),TRUE)
+
+   if("try-error" %in% class(holdout))
+   {
+      next
+   }
+
+   if(nrow(holdout) < daysvol)
+   {
+      next
+   }
+
+   
+# This symbol seems to be fine
+
+   print(cand)
+   
+   holdopt = sampleoneoption(cand, "call", daysvol)
+
+   if(numgoodones == 0)
+   {
+      optionsample = data.frame(symbol=cand,holdopt,stringsAsFactors=FALSE)
+   } else
+   {
+      optionsample = rbind(optionsample,c(symbol=cand,holdopt))
+   }
+
+   save(optionsample,file="optionsample.Robj")
+   
+   numgoodones = numgoodones + 1
+   set.seed(numgoodones)
+}
+
+
+
+
+
