@@ -1,0 +1,11 @@
+gradebook = data.frame(
+    Name = c("Miguel","Yotam","Mary","Jing"),
+    HWScore = c(98, 87, 99, 78),
+    ExamScore = c(92, 91, 87, 95),
+    FinalGrade = c("A", "A-", "A", "B"), 
+    stringsAsFactors = FALSE)
+
+
+gradebook$SID = c("3782", "2390", "4623", "0376")
+
+
